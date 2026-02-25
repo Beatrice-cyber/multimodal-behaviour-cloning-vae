@@ -40,6 +40,45 @@ from comp0188_cw2.Loss.BalancedLoss import TrackerBalancedLoss
 from comp0188_cw2 import logger
 from comp0188_cw2.training.TrainingLoop import TorchTrainingLoop
 
+pos_criterion = nn.MSELoss(reduction="mean")
+grp_criterion = nn.CrossEntropyLoss(reduction="mean")
+def collate_func(input_list:List[DatasetOutput])->DatasetOutput:
+    pos = []
+    _grp = []
+    images = []
+    obs = []
+    for val in input_list:
+        images.append(
+            torch.concat(
+                [val.input["front_cam_ob"], val.input["mount_cam_ob"]],
+                dim=0
+            )[None,:]
+            )
+        obs.append(
+            torch.concat(
+                [
+                    val.input["ee_cartesian_pos_ob"],
+                    val.input["ee_cartesian_vel_ob"],
+                    val.input["joint_pos_ob"]
+                    ],
+                dim=0
+            )[None,:]
+        )
+        pos.append(val.output["actions"][0:3][None,:])
+        _grp.append(val.output["actions"][-1:][None])
+    _grp = torch.concat(_grp, dim=0)
+    grp = torch.zeros(_grp.shape[0],3)
+    grp[torch.arange(len(grp)), _grp.squeeze().int()] = 1
+    return DatasetOutput(
+        input = {
+            "images":torch.concat(images,dim=0),
+            "obs":torch.concat(obs,dim=0),
+            },
+        output = {
+            "pos":torch.concat(pos, dim=0),
+            "grp":grp
+            }
+    )
 
 class VAE_Encoder(nn.Module):
     def __init__(self, vector_latent_dim, latent_dim):
