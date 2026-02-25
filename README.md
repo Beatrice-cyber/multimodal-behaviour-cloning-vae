@@ -1,115 +1,142 @@
-# multimodal-behaviour-cloning-vae
-\documentclass{article}
-\usepackage{amsmath}
-\usepackage{graphicx}
-\usepackage{hyperref}
-\usepackage{geometry}
-\geometry{margin=1in}
+# Behaviour Cloning for Robotic Manipulation  
+### Multimodal Learning with Self-Supervised Variational Autoencoder (PyTorch)
 
-\title{Behaviour Cloning for Robotic Manipulation \\ 
-\large Multimodal Learning with Self-Supervised Variational Autoencoder}
-\author{Your Name}
-\date{2024}
+## Overview
 
-\begin{document}
+This project explores behaviour cloning for robotic manipulation using multimodal observations.  
+The goal is to predict continuous robotic arm control actions from:
 
-\maketitle
+- RGB visual inputs  
+- Joint positions and velocities  
+- End-effector state information  
 
-\section{Project Overview}
+The system combines self-supervised representation learning with supervised policy learning to improve downstream action prediction performance.
 
-This project investigates behaviour cloning for robotic manipulation using multimodal observations. The objective is to predict robotic arm actions from RGB visual inputs combined with proprioceptive data (joint states, positional and velocity vectors).
+---
 
-The system integrates self-supervised representation learning through a Variational Autoencoder (VAE) to learn compact latent embeddings from visual observations before downstream action prediction.
+## Problem Setting
 
-\section{Problem Setting}
+Given multimodal observations at time step *t*:
 
-Given multimodal inputs:
-\begin{itemize}
-    \item RGB images
-    \item Joint positions and velocities
-    \item End-effector states
-\end{itemize}
+- Image frame (RGB)
+- Robot joint states
+- Positional and velocity vectors
 
-The goal is to learn a policy:
-\[
-\pi(a_t | o_t)
-\]
-where $o_t$ represents multimodal observations and $a_t$ represents continuous control actions.
+The objective is to learn a policy:
 
-\section{Methodology}
+π(aₜ | oₜ)
 
-\subsection{Self-Supervised Visual Representation Learning}
+that predicts continuous control actions from combined sensory inputs.
 
-A Variational Autoencoder (VAE) was trained on RGB images to learn compact latent representations. The objective function is:
 
-\[
-\mathcal{L} = \mathbb{E}_{q(z|x)}[\log p(x|z)] - \beta D_{KL}(q(z|x) \| p(z))
-\]
+---
 
-The learned latent embedding was used as input to the downstream policy network.
+## Methodology
 
-\subsection{Behaviour Cloning Model}
+### 1. Self-Supervised Representation Learning (VAE)
 
-The behaviour cloning model integrates:
-\begin{itemize}
-    \item VAE latent embeddings
-    \item Robot state vectors
-\end{itemize}
+A Variational Autoencoder (VAE) was trained on RGB image observations to learn compact latent embeddings.
 
-The model predicts continuous control actions using supervised regression, optimised via Mean Squared Error (MSE) loss.
+The objective function optimised:
 
-\section{Baseline Comparison}
+- Reconstruction loss  
+- KL divergence regularisation  
 
-Performance was compared against:
-\begin{itemize}
-    \item A fully supervised model trained directly on raw image features
-    \item A state-only baseline
-\end{itemize}
+The learned latent representation was then used as visual input to the behaviour cloning model.
+
+---
+
+### 2. Behaviour Cloning Model
+
+The downstream supervised model integrates:
+
+- VAE latent embeddings  
+- Proprioceptive robot state features  
+
+The network predicts continuous control actions using Mean Squared Error (MSE) loss.
+
+---
+
+## Baseline Comparison
+
+Performance was evaluated against:
+
+- Fully supervised model trained directly on raw image features  
+- State-only baseline  
 
 Evaluation metrics included:
-\begin{itemize}
-    \item Mean Squared Error (MSE)
-    \item Action prediction error distribution
-\end{itemize}
 
-\section{Training Pipeline}
+- Mean Squared Error (MSE)  
+- Action prediction error distribution  
 
-\begin{itemize}
-    \item Implemented in PyTorch
-    \item Mixed-precision training (FP16) for efficiency
-    \item Experiment tracking via Weights \& Biases
-    \item Modular dataset and training loop structure
-\end{itemize}
+The VAE-based representation improved generalisation compared to raw image baselines.
 
-\section{Results and Observations}
+---
 
-\begin{itemize}
-    \item Latent dimensionality significantly influenced downstream performance.
-    \item Self-supervised pretraining improved generalisation compared to raw image baselines.
-    \item Overfitting was mitigated via regularisation and KL balancing.
-\end{itemize}
+## Training Pipeline
 
-\section{Future Improvements}
+- Implemented in PyTorch  
+- Mixed precision (FP16) training  
+- Experiment tracking using Weights & Biases  
+- Modular dataset and model structure  
+- Configurable training parameters  
 
-\begin{itemize}
-    \item Contrastive self-supervised methods (e.g., SimCLR)
-    \item Temporal modelling (LSTMs / Transformers)
-    \item Domain randomisation for robustness
-\end{itemize}
+---
 
-\section{Dataset}
+## Key Observations
 
-Due to dataset size constraints (approximately 15GB), raw data is not included in this repository. 
-Users may adapt the dataset loading module to their own robotic datasets.
+- Latent dimensionality significantly influenced downstream performance.
+- Self-supervised pretraining improved robustness to visual variation.
+- KL weighting required careful tuning to avoid posterior collapse.
+- Structured experiment tracking accelerated hyperparameter iteration.
 
-\section{Technologies Used}
+---
 
-\begin{itemize}
-    \item Python
-    \item PyTorch
-    \item OpenCV
-    \item Weights \& Biases
-    \item Docker (for containerisation)
-\end{itemize}
+## Technologies Used
 
-\end{document}
+- Python  
+- PyTorch  
+- OpenCV  
+- Weights & Biases  
+- Docker (for containerisation)
+
+---
+
+## Dataset
+
+The dataset (~15GB) is not included due to size constraints.
+This is from https://github.com/clvrai/clvr_jaco_play_dataset
+
+The dataset was collected at a frequency of 10Hz. It has the following structure:
+
+- Observations are split into 5 attributes,
+    - **front_cam_ob** : observations from 3rd person cam
+    - **mount_cam_ob** : observations from mounted camera
+    - **ee_cartesian_pos_ob** : end effector cartesian position. ee_cartesian_pos_ob[0:3] corresponds to position and ee_cartesian_pos_ob[3:7] corresponds to orientation in quarternian format
+    - **ee_cartesian_vel_ob** : end effector cartesian velocity. ee_cartesian_pos_ob[0:3] corresponds to change in position and ee_cartesian_pos_ob[3:6] corresponds to change in orientation in roll, pitch yaw format
+    - **joint_pos_ob** : joint positions of the jaco arm (we only use the last 2 elements of this that correspond to the gripper joints)
+- **actions** : first 3 elements are cartesian deltas and 4th element is a label from {0, 1, 2} meaning {open gripper, don't move gripper, close gripper}
+- **terminals** : 1 at the end of each skill
+- **prompts** : Natural language description of the goal
+- **reward** : 1 at the end of each skill
+
+To run training:
+
+1. Update the dataset path in `train.py`
+2. Ensure data follows the expected directory structure
+
+
+---
+
+## Future Improvements
+
+- Temporal modelling (LSTM / Transformer-based policy)
+- Contrastive representation learning
+- Domain randomisation for improved robustness
+- Deployment optimisation for real-time inference
+
+---
+
+## Contact
+
+If you have any questions about this project, feel free to reach out.
